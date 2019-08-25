@@ -1,8 +1,9 @@
-#!/usr/bin/python3
+#!/usr/local/bin/python3.5
+
 
 # Author(s): Alireza Zolanvari, Mohammadmahdi Rahimi
 
-from reporter_skeleton import *
+from commentator_skeleton import *
 
 
 if __name__ == '__main__':
