@@ -114,7 +114,7 @@ class Component(ApplicationSession):
             # self.number_of_robots = info['number_of_robots']
 
             self.field = info['field']
-            # self.goal = info['goal']
+            self.goal = info['goal']
             # self.penalty_area = info['penalty_area']
             # self.goal_area = info['goal_area']
             self.resolution = info['resolution']
@@ -138,7 +138,6 @@ class Component(ApplicationSession):
             self.end_of_frame = False
             self.received_frame = Frame()
             self.image = Received_Image(self.resolution, self.colorChannels)
-            self.paragraphs = []
             return
 ##############################################################################
 
@@ -159,14 +158,14 @@ class Component(ApplicationSession):
         except Exception as e:
             self.printConsole("Error: {}".format(e))
         else:
-            self.printConsole("I am the reporter for this game!")
+            self.printConsole("I am the commentator for this game!")
 
     @inlineCallbacks
     def on_event(self, f):
 
         @inlineCallbacks
-        def set_report(self, report):
-            yield self.call(u'aiwc.report', args.key, report)
+        def set_comment(self, commentary):
+            yield self.call(u'aiwc.commentate', args.key, commentary)
             return
 
         # initiate empty frame
@@ -181,6 +180,10 @@ class Component(ApplicationSession):
             self.received_frame.score = f['score']
         if 'reset_reason' in f:
             self.received_frame.reset_reason = f['reset_reason']
+        if 'half_passed' in f:
+            self.received_frame.half_passed = f['half_passed']
+        if 'ball_ownership' in f:
+            self.received_frame.ball_ownership = f['ball_ownership']
         if 'subimages' in f:
             self.received_frame.subimages = f['subimages']
             # Uncomment following block to use images.
@@ -195,44 +198,64 @@ class Component(ApplicationSession):
             self.received_frame.coordinates = f['coordinates']
         if 'EOF' in f:
             self.end_of_frame = f['EOF']
-
-        #self.printConsole(self.received_frame.time)
-        #self.printConsole(self.received_frame.score)
-        #self.printConsole(self.received_frame.reset_reason)
-        #self.printConsole(self.end_of_frame)
+            #self.printConsole(self.received_frame.time)
+            #self.printConsole(self.received_frame.score)
+            #self.printConsole(self.received_frame.reset_reason)
+            #self.printConsole(self.received_frame.half_passed)
+            #self.printConsole(self.end_of_frame)
 
         if (self.end_of_frame):
+            #self.printConsole("end of frame")
+
+            if (self.received_frame.reset_reason == GAME_START):
+                if (not self.received_frame.half_passed):
+                    set_comment(self, "Game has begun")
+                else:
+                    set_comment(self, "Second half has begun")
+
+            elif (self.received_frame.reset_reason == DEADLOCK):
+                set_comment(self, "Position is reset since no one touched the ball")
+
+            elif (self.received_frame.reset_reason == GOALKICK):
+                set_comment(self, "A goal kick of Team {}".format("Red" if self.received_frame.ball_ownership else "Blue"))
+
+            elif (self.received_frame.reset_reason == CORNERKICK):
+                set_comment(self, "A corner kick of Team {}".format("Red" if self.received_frame.ball_ownership else "Blue"))
+
+            elif (self.received_frame.reset_reason == PENALTYKICK):
+                set_comment(self, "A penalty kick of Team {}".format("Red" if self.received_frame.ball_ownership else "Blue"))
             # To get the image at the end of each frame use the variable:
             # self.image.ImageBuffer
+
+            if (self.received_frame.coordinates[BALL][X] >= (self.field[X] / 2) and abs(self.received_frame.coordinates[BALL][Y]) <= (self.goal[Y] / 2)):
+                set_comment(self, "Team Red scored!!")
+            elif (self.received_frame.coordinates[BALL][X] <= (-self.field[X] / 2) and abs(self.received_frame.coordinates[BALL][Y]) <= (self.goal[Y] / 2)):
+                set_comment(self, "Team Blue scored!!")
+
+            if (self.received_frame.reset_reason == HALFTIME):
+                set_comment(self, "The halftime has met. Current score is: {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
+
             if (self.received_frame.reset_reason == EPISODE_END):
                 if (self.received_frame.score[0] > self.received_frame.score[1]):
-                    self.paragraphs.append("Team Red won the game with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
+                    set_comment(self, "Team Red won the game with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
                 elif (self.received_frame.score[0] < self.received_frame.score[1]):
-                    self.paragraphs.append("Team Blue won the game with score {} : {}".format(self.received_frame.score[1], self.received_frame.score[0]))
+                    set_comment(self, "Team Blue won the game with score {} : {}".format(self.received_frame.score[1], self.received_frame.score[0]))
                 else:
-                    self.paragraphs.append("The game ended in a tie with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
-
-                self.paragraphs.append("It was really a great match!")
-
-                set_report(self, self.paragraphs)
+                    set_comment(self, "The game ended in a tie with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
 
             if (self.received_frame.reset_reason == GAME_END):
                 if (self.received_frame.score[0] > self.received_frame.score[1]):
-                    self.paragraphs.append("Team Red won the game with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
+                    set_comment(self, "Team Red won the game with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
                 elif (self.received_frame.score[0] < self.received_frame.score[1]):
-                    self.paragraphs.append("Team Blue won the game with score {} : {}".format(self.received_frame.score[1], self.received_frame.score[0]))
+                    set_comment(self, "Team Blue won the game with score {} : {}".format(self.received_frame.score[1], self.received_frame.score[0]))
                 else:
-                    self.paragraphs.append("The game ended in a tie with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
-
-                self.paragraphs.append("It was really a great match!")
-
-                set_report(self, self.paragraphs)
+                    set_comment(self, "The game ended in a tie with score {} : {}".format(self.received_frame.score[0], self.received_frame.score[1]))
 
 ##############################################################################
                 #(virtual finish())
                 #save your data
                 with open(args.datapath + '/result.txt', 'w') as output:
-                    # output.write('yourvariables')
+                    #output.write('yourvariables')
                     output.close()
                 #unsubscribe; reset or leave
                 yield self.sub.unsubscribe()
